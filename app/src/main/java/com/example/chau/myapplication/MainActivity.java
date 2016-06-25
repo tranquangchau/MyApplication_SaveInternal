@@ -3,10 +3,12 @@ package com.example.chau.myapplication;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.StrictMode;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -18,29 +20,42 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.Arrays;
+import java.util.Date;
 
 public class MainActivity extends Activity {
 
     WebView myWebView;
     RelativeLayout fullscreen;
     TextView txt_link;
-    Button btn_save,btn_open;
+    Button btn_save,btn_open,btn_home;
     Integer i1=0;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
+
+
         load_webview();
         btn_save =(Button) findViewById(R.id.button);
         btn_open =(Button) findViewById(R.id.button_open);
+        btn_home =(Button) findViewById(R.id.btn_home);
         txt_link =(TextView) findViewById(R.id.textView);
         fullscreen =(RelativeLayout) findViewById(R.id.fullscreen);
 
@@ -67,7 +82,12 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 txt_link.setText(m1);
-                save_filetoInternal();
+                //save_filetoInternal(); //save html only
+                try {
+                    save_fileimg(m1);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         });
         btn_open.setOnClickListener(new View.OnClickListener() {
@@ -77,14 +97,99 @@ public class MainActivity extends Activity {
                 read_listfileInternal();
             }
         });
+        btn_home.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //read_fileInternal("MyFile.html");
+                myWebView.loadUrl("http://www.03way.com/webs/list.php");
+            }
+        });
 
 
     }
+
+    private void save_fileimg(String m1) throws IOException {
+        //URL url = new URL("http://tranquangchau.net/u/uploads/1466811331_2016-06-25-06-35-26.jpg");
+       // Log.d("Save_url", String.valueOf(url));
+        String m3;
+        if(m1.contains("name=")){
+            String[] m2=m1.split("name=");
+            m3 =m2[1];
+        }else{
+            int itime = (int) new Date().getTime();
+            int lastDot = m1.lastIndexOf('.');
+            String extension="";
+            if (lastDot == -1) {
+                // No dots - what do you want to do?
+            } else {
+                extension = m1.substring(lastDot);
+            }
+            m3= String.valueOf(itime)+extension;
+        }
+        Log.d("asdf_bienconlai",m3);
+        //String fileName = "fil1.html";
+        String fileName = m3;
+        
+        try
+        {
+            URL url = new URL(m1);
+
+            URLConnection ucon = url.openConnection();
+            ucon.setReadTimeout(5000);
+            ucon.setConnectTimeout(10000);
+
+            InputStream is = ucon.getInputStream();
+            BufferedInputStream inStream = new BufferedInputStream(is, 1024 * 5);
+
+            //String n=Context.MODE_PRIVATE+"/files/"+fileName;
+            //ContextWrapper cw = new ContextWrapper(MainActivity.this);
+           //File directory = cw.getDir("files", Context.MODE_PRIVATE);
+
+            //Log.d("Filefiles",n);
+            //file = new File(getFilesDir(), name_file);
+            File file = new File(getFilesDir(), fileName);
+            Log.d("Filefiles",getFilesDir()+"/"+fileName);
+            String dir_fie= getFilesDir()+"/"+fileName;
+            if (file.exists())
+            {
+                file.delete();
+            }
+            file.createNewFile();
+
+            FileOutputStream outStream = new FileOutputStream(file);
+            byte[] buff = new byte[5 * 1024];
+
+            int len;
+            while ((len = inStream.read(buff)) != -1)
+            {
+                outStream.write(buff, 0, len);
+            }
+
+            outStream.flush();
+            outStream.close();
+            inStream.close();
+            Log.d("SaveStatus", "saved");
+            Toast.makeText(MainActivity.this, dir_fie, Toast.LENGTH_LONG).show();
+        }
+        catch (Exception e)
+        {
+            Log.d("SaveStatus","error");
+            e.printStackTrace();
+            //return false;
+        }
+
+
+    }
+
     String m1="";
     private void load_webview() {
         myWebView = (WebView) findViewById(R.id.webView);
         WebSettings webSettings = myWebView.getSettings();
         webSettings.setJavaScriptEnabled(true);
+        webSettings.setSupportZoom(true);
+        webSettings.setBuiltInZoomControls(true);
+        webSettings.setUseWideViewPort(true);
+
         myWebView.addJavascriptInterface(new LoadListener(), "HTMLOUT");
 
         myWebView.loadUrl("http://www.03way.com/webs/list.php");
@@ -135,10 +240,24 @@ public class MainActivity extends Activity {
         // Create a file in the Internal Storage
 
         //var tabId = id.split("_").pop()
-        String[] m2=m1.split("name=");
-        Log.d("asdf_bienconlai",m2[1]);
+        String m3;
+        if(m1.contains("name=")){
+            String[] m2=m1.split("name=");
+            m3 =m2[1];
+        }else{
+            int itime = (int) new Date().getTime();
+            int lastDot = m1.lastIndexOf('.');
+            String extension="";
+            if (lastDot == -1) {
+                // No dots - what do you want to do?
+            } else {
+                extension = m1.substring(lastDot);
+            }
+            m3= String.valueOf(itime)+extension;
+        }
+        Log.d("asdf_bienconlai",m3);
         //String fileName = "fil1.html";
-        String fileName = m2[1];
+        String fileName = m3;
         String content = sourcode;
 
         FileOutputStream outputStream = null;
@@ -150,6 +269,9 @@ public class MainActivity extends Activity {
             e.printStackTrace();
         }
         Log.d("save internal","ok");
+        Toast.makeText(MainActivity.this, m3,
+                Toast.LENGTH_LONG).show();
+
     }
     //read file save internal
     public void read_fileInternal(String name_file){
@@ -157,17 +279,41 @@ public class MainActivity extends Activity {
         BufferedReader input = null;
         File file = null;
         try {
-            file = new File(getFilesDir(), name_file); // Pass getFilesDir() and "MyFile" to read file
-
-            input = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
-            String line;
-            StringBuffer buffer = new StringBuffer();
-            while ((line = input.readLine()) != null) {
-                buffer.append(line);
+            int lastDot = name_file.lastIndexOf('.');
+            String extension="";
+            if (lastDot == -1) {
+                // No dots - what do you want to do?
+            } else {
+                extension = name_file.substring(lastDot);
             }
+            Log.d("extension_read",extension);
+            if(extension.equals(".jpg") ||extension.equals(".jpeg") || extension.equals(".png") || extension.equals(".gif")){
+                //doc 1 file img
+                /*
+                String base = Environment.getExternalStorageDirectory().getAbsolutePath().toString();
+                String imagePath = "file://"+ base + "/files/"+name_file;
+                Log.d("imagePath",imagePath);//file:///storage/sdcard0/files/-2061390065.jpg
+                */
+                String imagePath ="file:///"+getFilesDir()+"/" + name_file;
+                Log.d("imagePath",imagePath); //file:///data/data/com.example.chau.myapplication/files/-2061390065.jpg
 
-            Log.d("read", buffer.toString());
-            myWebView.loadDataWithBaseURL("", buffer.toString(), "text/html", "UTF-8", "");
+                String html = "<html><head></head><body><img src=\""+ imagePath + "\"></body></html>";
+                myWebView.loadDataWithBaseURL("", html, "text/html","utf-8", "");
+
+            }else{
+            //doc 1 file txt, html
+                file = new File(getFilesDir(), name_file); // Pass getFilesDir() and "MyFile" to read file
+
+                input = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+                String line;
+                StringBuffer buffer = new StringBuffer();
+                while ((line = input.readLine()) != null) {
+                    buffer.append(line);
+                }
+
+                Log.d("read", buffer.toString());
+                myWebView.loadDataWithBaseURL("", buffer.toString(), "text/html", "UTF-8", "");
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
